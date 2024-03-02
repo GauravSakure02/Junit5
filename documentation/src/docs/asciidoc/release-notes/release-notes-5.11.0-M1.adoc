@@ -1,0 +1,80 @@
+[[release-notes-5.11.0-M1]]
+== 5.11.0-M1
+
+*Date of Release:* ❓
+
+*Scope:* ❓
+
+For a complete list of all _closed_ issues and pull requests for this release, consult the
+link:{junit5-repo}+/milestone/68?closed=1+[5.11.0-M1] milestone page in the JUnit
+repository on GitHub.
+
+
+[[release-notes-5.11.0-M1-junit-platform]]
+=== JUnit Platform
+
+[[release-notes-5.11.0-M1-junit-platform-bug-fixes]]
+==== Bug Fixes
+
+* `ReflectionSupport.findFields(...)` now returns a distinct set of fields.
+* Fixed parsing of recursive jar uris. Allows the JUnit Platform Launcher to be used
+  inside Spring Boot executable jars for Spring Boot 3.2 and later.
+
+[[release-notes-5.11.0-M1-junit-platform-deprecations-and-breaking-changes]]
+==== Deprecations and Breaking Changes
+
+* ❓
+
+[[release-notes-5.11.0-M1-junit-platform-new-features-and-improvements]]
+==== New Features and Improvements
+
+* New `ConversionSupport` utility in `junit-platform-commons` which exposes the conversion
+  logic that was previously private to JUnit Jupiter's `@ParameterizedTest` infrastructure
+  -- for use in third-party extensions and test engines.
+* Error messages for type mismatches in `NamespacedHierarchicalStore` now include the
+  actual type and value in addition to the required type.
+
+
+[[release-notes-5.11.0-M1-junit-jupiter]]
+=== JUnit Jupiter
+
+[[release-notes-5.11.0-M1-junit-jupiter-bug-fixes]]
+==== Bug Fixes
+
+* ❓
+
+[[release-notes-5.11.0-M1-junit-jupiter-deprecations-and-breaking-changes]]
+==== Deprecations and Breaking Changes
+
+* Kotlin support now depends on Kotlin API and language version 1.6; whereas, it
+  previously depended on version 1.3.
+
+[[release-notes-5.11.0-M1-junit-jupiter-new-features-and-improvements]]
+==== New Features and Improvements
+
+* `JAVA_23` has been added to the `JRE` enum for use with JRE-based execution conditions.
+* Improved documentation for semantics of a disabled test regarding class-level lifecycle
+  methods and callbacks.
+* New `@AutoClose` annotation that can be applied to fields within tests to automatically
+  close the annotated resource after test execution. See the
+  <<../user-guide/index.adoc#writing-tests-built-in-extensions-AutoClose, User Guide>> for
+  details.
+
+
+[[release-notes-5.11.0-M1-junit-vintage]]
+=== JUnit Vintage
+
+[[release-notes-5.11.0-M1-junit-vintage-bug-fixes]]
+==== Bug Fixes
+
+* ❓
+
+[[release-notes-5.11.0-M1-junit-vintage-deprecations-and-breaking-changes]]
+==== Deprecations and Breaking Changes
+
+* ❓
+
+[[release-notes-5.11.0-M1-junit-vintage-new-features-and-improvements]]
+==== New Features and Improvements
+
+* ❓

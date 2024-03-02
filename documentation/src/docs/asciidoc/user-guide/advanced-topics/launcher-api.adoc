@@ -1,0 +1,277 @@
+[[launcher-api]]
+=== JUnit Platform Launcher API
+
+One of the prominent goals of JUnit 5 is to make the interface between JUnit and its
+programmatic clients – build tools and IDEs – more powerful and stable. The purpose is to
+decouple the internals of discovering and executing tests from all the filtering and
+configuration that's necessary from the outside.
+
+JUnit 5 introduces the concept of a `Launcher` that can be used to discover, filter, and
+execute tests. Moreover, third party test libraries – like Spock, Cucumber, and FitNesse
+– can plug into the JUnit Platform's launching infrastructure by providing a custom
+<<test-engines,TestEngine>>.
+
+The launcher API is in the `{junit-platform-launcher}` module.
+
+An example consumer of the launcher API is the `{ConsoleLauncher}` in the
+`{junit-platform-console}` project.
+
+[[launcher-api-discovery]]
+==== Discovering Tests
+
+Having _test discovery_ as a dedicated feature of the platform itself frees IDEs and build
+tools from most of the difficulties they had to go through to identify test classes and
+test methods in previous versions of JUnit.
+
+Usage Example:
+
+[source,java,indent=0]
+----
+include::{testDir}/example/UsingTheLauncherDemo.java[tags=imports]
+----
+
+[source,java,indent=0]
+----
+include::{testDir}/example/UsingTheLauncherDemo.java[tags=discovery]
+----
+
+You can select classes, methods, and all classes in a package or even search for all tests
+in the class-path or module-path. Discovery takes place across all participating test
+engines.
+
+The resulting `TestPlan` is a hierarchical (and read-only) description of all engines,
+classes, and test methods that fit the `LauncherDiscoveryRequest`. The client can
+traverse the tree, retrieve details about a node, and get a link to the original source
+(like class, method, or file position). Every node in the test plan has a _unique ID_
+that can be used to invoke a particular test or group of tests.
+
+Clients can register one or more `{LauncherDiscoveryListener}` implementations via the
+`{LauncherDiscoveryRequestBuilder}` to gain insight into events that occur during test
+discovery. By default, the builder registers an "abort on failure" listener that aborts
+test discovery after the first discovery failure is encountered. The default
+`LauncherDiscoveryListener` can be changed via the
+`junit.platform.discovery.listener.default` <<running-tests-config-params, configuration
+parameter>>.
+
+[[launcher-api-execution]]
+==== Executing Tests
+
+To execute tests, clients can use the same `LauncherDiscoveryRequest` as in the discovery
+phase or create a new request. Test progress and reporting can be achieved by registering
+one or more `{TestExecutionListener}` implementations with the `Launcher` as in the
+following example.
+
+[source,java,indent=0]
+----
+include::{testDir}/example/UsingTheLauncherDemo.java[tags=execution]
+----
+
+There is no return value for the `execute()` method, but you can use a
+`TestExecutionListener` to aggregate the results. For examples see the
+`{SummaryGeneratingListener}`, `{LegacyXmlReportGeneratingListener}`, and
+`{UniqueIdTrackingListener}`.
+
+NOTE: All `TestExecutionListener` methods are called sequentially. Methods for start
+events are called in registration order while methods for finish events are called in
+reverse order.
+Test case execution won't start before all `executionStarted` calls have returned.
+
+[[launcher-api-engines-custom]]
+==== Registering a TestEngine
+
+See the dedicated section on <<test-engines-registration, TestEngine registration>> for
+details.
+
+[[launcher-api-post-discovery-filters-custom]]
+==== Registering a PostDiscoveryFilter
+
+In addition to specifying post-discovery filters as part of a `{LauncherDiscoveryRequest}`
+passed to the `{Launcher}` API, `{PostDiscoveryFilter}` implementations will be discovered
+at runtime via Java's `{ServiceLoader}` mechanism and automatically applied by the
+`Launcher` in addition to those that are part of the request.
+
+For example, an `example.CustomTagFilter` class implementing `PostDiscoveryFilter` and
+declared within the `/META-INF/services/org.junit.platform.launcher.PostDiscoveryFilter`
+file is loaded and applied automatically.
+
+[[launcher-api-launcher-session-listeners-custom]]
+==== Registering a LauncherSessionListener
+
+Registered implementations of `{LauncherSessionListener}` are notified when a
+`{LauncherSession}` is opened (before a `{Launcher}` first discovers and executes tests)
+and closed (when no more tests will be discovered or executed). They can be registered
+programmatically via the `{LauncherConfig}` that is passed to the `{LauncherFactory}`, or
+they can be discovered at runtime via Java's `{ServiceLoader}` mechanism and automatically
+registered with `LauncherSession` (unless automatic registration is disabled.)
+
+[[launcher-api-launcher-session-listeners-tool-support]]
+===== Tool Support
+
+The following build tools and IDEs are known to provide full support for `LauncherSession`:
+
+* Gradle 4.6 and later
+* Maven Surefire/Failsafe 3.0.0-M6 and later
+* IntelliJ IDEA 2017.3 and later
+
+Other tools might also work but have not been tested explicitly.
+
+[[launcher-api-launcher-session-listeners-tool-example-usage]]
+===== Example Usage
+
+A `LauncherSessionListener` is well suited for implementing once-per-JVM setup/teardown
+behavior since it's called before the first and after the last test in a launcher session,
+respectively. The scope of a launcher session depends on the used IDE or build tool but
+usually corresponds to the lifecycle of the test JVM. A custom listener that starts an
+HTTP server before executing the first test and stops it after the last test has been
+executed, could look like this:
+
+[source,java]
+.src/test/java/example/session/GlobalSetupTeardownListener.java
+----
+package example.session;
+
+include::{testDir}/example/session/GlobalSetupTeardownListener.java[tags=user_guide]
+----
+<1> Start the HTTP server
+<2> Export its host address as a system property for consumption by tests
+<3> Export its port as a system property for consumption by tests
+<4> Stop the HTTP server
+
+This sample uses the HTTP server implementation from the jdk.httpserver module that comes
+with the JDK but would work similarly with any other server or resource. In order for the
+listener to be picked up by JUnit Platform, you need to register it as a service by adding
+a resource file with the following name and contents to your test runtime classpath (e.g.
+by adding the file to `src/test/resources`):
+
+[source]
+.src/test/resources/META-INF/services/org.junit.platform.launcher.LauncherSessionListener
+----
+include::{testResourcesDir}/META-INF/services/org.junit.platform.launcher.LauncherSessionListener[]
+----
+
+You can now use the resource from your test:
+
+[source,java]
+.src/test/java/example/session/HttpTests.java
+----
+package example.session;
+
+include::{testDir}/example/session/HttpTests.java[tags=user_guide]
+----
+<1> Read the host address of the server from the system property set by the listener
+<2> Read the port of the server from the system property set by the listener
+<3> Send a request to the server
+<4> Check the status code of the response
+
+[[launcher-api-launcher-interceptors-custom]]
+==== Registering a LauncherInterceptor
+
+In order to intercept the creation of instances of `{Launcher}` and
+`{LauncherSessionListener}` and calls to the `discover` and `execute` methods of the
+former, clients can register custom implementations of `{LauncherInterceptor}` via Java's
+`{ServiceLoader}` mechanism by additionally setting the
+`junit.platform.launcher.interceptors.enabled` <<running-tests-config-params,
+configuration parameter>> to `true`.
+
+A typical use case is to create a custom replace the `ClassLoader` used by the JUnit
+Platform to load test classes and engine implementations.
+
+[source,java]
+----
+include::{testDir}/example/CustomLauncherInterceptor.java[tags=user_guide]
+----
+
+[[launcher-api-launcher-discovery-listeners-custom]]
+==== Registering a LauncherDiscoveryListener
+
+In addition to specifying discovery listeners as part of a `{LauncherDiscoveryRequest}` or
+registering them programmatically via the `{Launcher}` API, custom
+`LauncherDiscoveryListener` implementations can be discovered at runtime via Java's
+`{ServiceLoader}` mechanism and automatically registered with the `Launcher` created via
+the `{LauncherFactory}`.
+
+For example, an `example.CustomLauncherDiscoveryListener` class implementing
+`LauncherDiscoveryListener` and declared within the
+`/META-INF/services/org.junit.platform.launcher.LauncherDiscoveryListener` file is loaded
+and registered automatically.
+
+[[launcher-api-listeners-custom]]
+==== Registering a TestExecutionListener
+
+In addition to the public `{Launcher}` API method for registering test execution listeners
+programmatically, custom `{TestExecutionListener}` implementations will be discovered at
+runtime via Java's `{ServiceLoader}` mechanism and automatically registered with the
+`Launcher` created via the `{LauncherFactory}`.
+
+For example, an `example.CustomTestExecutionListener` class implementing
+`TestExecutionListener` and declared within the
+`/META-INF/services/org.junit.platform.launcher.TestExecutionListener` file is loaded and
+registered automatically.
+
+[[launcher-api-listeners-config]]
+==== Configuring a TestExecutionListener
+
+When a `{TestExecutionListener}` is registered programmatically via the `{Launcher}` API,
+the listener may provide programmatic ways for it to be configured -- for example, via its
+constructor, setter methods, etc. However, when a `TestExecutionListener` is registered
+automatically via Java's `ServiceLoader` mechanism (see
+<<launcher-api-listeners-custom>>), there is no way for the user to directly configure the
+listener. In such cases, the author of a `TestExecutionListener` may choose to make the
+listener configurable via <<running-tests-config-params, configuration parameters>>. The
+listener can then access the configuration parameters via the `TestPlan` supplied to the
+`testPlanExecutionStarted(TestPlan)` and `testPlanExecutionFinished(TestPlan)` callback
+methods. See the `{UniqueIdTrackingListener}` for an example.
+
+[[launcher-api-listeners-custom-deactivation]]
+==== Deactivating a TestExecutionListener
+
+Sometimes it can be useful to run a test suite _without_ certain execution listeners being
+active. For example, you might have custom a `{TestExecutionListener}` that sends the test
+results to an external system for reporting purposes, and while debugging you might not
+want these _debug_ results to be reported. To do this, provide a pattern for the
+`junit.platform.execution.listeners.deactivate` _configuration parameter_ to specify which
+execution listeners should be deactivated (i.e. not registered) for the current test run.
+
+[NOTE]
+====
+Only listeners registered via the `{ServiceLoader}` mechanism within the
+`/META-INF/services/org.junit.platform.launcher.TestExecutionListener` file can be
+deactivated. In other words, any `TestExecutionListener` registered explicitly via the
+`{LauncherDiscoveryRequest}` cannot be deactivated via the
+`junit.platform.execution.listeners.deactivate` _configuration parameter_.
+
+In addition, since execution listeners are registered before the test run starts, the
+`junit.platform.execution.listeners.deactivate` _configuration parameter_ can only be
+supplied as a JVM system property or via the JUnit Platform configuration file (see
+<<running-tests-config-params>> for details). This _configuration parameter_ cannot be
+supplied in the `LauncherDiscoveryRequest` that is passed to the `{Launcher}`.
+====
+
+[[launcher-api-listeners-custom-deactivation-pattern]]
+===== Pattern Matching Syntax
+
+Refer to <<running-tests-config-params-deactivation-pattern>> for details.
+
+[[launcher-api-launcher-config]]
+==== Configuring the Launcher
+
+If you require fine-grained control over automatic detection and registration of test
+engines and listeners, you may create an instance of `{LauncherConfig}` and supply that to
+the `{LauncherFactory}`. Typically, an instance of `LauncherConfig` is created via the
+built-in fluent _builder_ API, as demonstrated in the following example.
+
+[source,java,indent=0]
+----
+include::{testDir}/example/UsingTheLauncherDemo.java[tags=launcherConfig]
+----
+
+[[launcher-api-dry-run-mode]]
+==== Dry-Run Mode
+
+When running tests via the `{Launcher}` API, you can enable _dry-run mode_ by setting the
+`junit.platform.execution.dryRun.enabled` <<running-tests-config-params,
+configuration parameter>> to `true`. In this mode, the `{Launcher}` will not actually
+execute any tests but will notify registered `{TestExecutionListener}` instances as if all
+tests had been skipped and their containers had been successful. This can be useful to
+test changes in the configuration of a build or to verify a listener is called as expected
+without having to wait for all tests to be executed.

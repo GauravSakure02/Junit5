@@ -1,0 +1,17 @@
+org.junit.platform.launcher@${platformVersion} jar:file:.+/junit-platform-launcher-\d.+\.jar..module-info\.class
+exports org.junit.platform.launcher
+exports org.junit.platform.launcher.core
+exports org.junit.platform.launcher.listeners
+exports org.junit.platform.launcher.listeners.discovery
+requires java.base mandated
+requires java.logging transitive
+requires org.apiguardian.api static transitive
+requires org.junit.platform.commons transitive
+requires org.junit.platform.engine transitive
+uses org.junit.platform.engine.TestEngine
+uses org.junit.platform.launcher.LauncherDiscoveryListener
+uses org.junit.platform.launcher.LauncherInterceptor
+uses org.junit.platform.launcher.LauncherSessionListener
+uses org.junit.platform.launcher.PostDiscoveryFilter
+uses org.junit.platform.launcher.TestExecutionListener
+provides org.junit.platform.launcher.TestExecutionListener with org.junit.platform.launcher.listeners.UniqueIdTrackingListener
