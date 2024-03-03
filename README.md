@@ -1,3 +1,3 @@
 # Junit5
 
-*Jupyter Junit5 Sample Codes*  
+*Jupyter Junit5 Codes*  
